@@ -1,0 +1,179 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SuperMod.App.ViewModels"
+        xmlns:conv="using:SuperMod.App.Converters"
+        x:Class="SuperMod.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1000" Height="720" MinWidth="820" MinHeight="560"
+        Title="SuperMod"
+        Background="#313338">
+
+  <Window.Resources>
+    <conv:StatusToBrushConverter x:Key="StatusToBrush" />
+    <conv:LogLevelToBrushConverter x:Key="LevelToBrush" />
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="Foreground" Value="#B5BAC1" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Margin" Value="0,0,0,3" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="Foreground" Value="#F2F3F5" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="#2B2D31" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="14" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel>
+    <!-- Header -->
+    <Border DockPanel.Dock="Top" Background="#1E1F22" Padding="16,12">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <TextBlock Text="SuperMod" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
+          <Border Background="#2B2D31" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                       Fill="{Binding Status, Converter={StaticResource StatusToBrush}}" />
+              <TextBlock Text="{Binding StatusText}" Foreground="#F2F3F5" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Content="Save" Command="{Binding SaveCommand}" />
+          <Button Content="Start" Command="{Binding StartCommand}" Classes="accent" />
+          <Button Content="Stop" Command="{Binding StopCommand}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Status detail / error bar -->
+    <Border DockPanel.Dock="Top" Background="#2B2D31" Padding="16,6" IsVisible="{Binding HasStatusDetail}">
+      <TextBlock Text="{Binding StatusDetail}" Foreground="#FAA61A" TextWrapping="Wrap" />
+    </Border>
+
+    <!-- Main content -->
+    <Grid Margin="12" ColumnDefinitions="*,8,1.25*">
+      <!-- Left: configuration -->
+      <Border Grid.Column="0" Classes="card" IsEnabled="{Binding CanEditConfig}">
+        <ScrollViewer>
+          <StackPanel Spacing="16">
+
+            <StackPanel>
+              <TextBlock Classes="section" Text="Discord" />
+              <TextBlock Classes="label" Text="Bot token" />
+              <TextBox Text="{Binding DiscordToken}" PasswordChar="•" Watermark="Paste your bot token" />
+            </StackPanel>
+
+            <StackPanel>
+              <TextBlock Classes="section" Text="Rules" />
+              <TextBlock Classes="label" Text="The bot enforces these (plain English)." />
+              <TextBox Text="{Binding Rules}" AcceptsReturn="True" TextWrapping="Wrap" Height="130"
+                       VerticalContentAlignment="Top" />
+            </StackPanel>
+
+            <StackPanel>
+              <TextBlock Classes="section" Text="AI backend" />
+              <Grid ColumnDefinitions="*,10,*">
+                <StackPanel Grid.Column="0">
+                  <TextBlock Classes="label" Text="Provider" />
+                  <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding Providers}"
+                            SelectedItem="{Binding SelectedProvider}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Classes="label" Text="Model" />
+                  <TextBox Text="{Binding Model}" Watermark="e.g. llama3.1" />
+                </StackPanel>
+              </Grid>
+              <TextBlock Classes="label" Text="Base URL (optional)" Margin="0,8,0,3" />
+              <TextBox Text="{Binding BaseUrl}" Watermark="{Binding BaseUrlWatermark}" />
+              <TextBlock Classes="label" Text="API key (required for xAI / OpenAI)" Margin="0,8,0,3" />
+              <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
+              <Grid ColumnDefinitions="*,10,*" Margin="0,8,0,0">
+                <StackPanel Grid.Column="0">
+                  <TextBlock Classes="label" Text="Temperature" />
+                  <NumericUpDown Value="{Binding Temperature}" Minimum="0" Maximum="2" Increment="0.1" FormatString="0.0" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Classes="label" Text="Request timeout (s)" />
+                  <NumericUpDown Value="{Binding RequestTimeoutSeconds}" Minimum="10" Maximum="600" Increment="10" FormatString="0" />
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+
+            <StackPanel>
+              <TextBlock Classes="section" Text="Moderation" />
+              <Grid ColumnDefinitions="*,10,*">
+                <StackPanel Grid.Column="0">
+                  <TextBlock Classes="label" Text="Run every N messages" />
+                  <NumericUpDown Value="{Binding MessagesPerBatch}" Minimum="1" Maximum="100" Increment="1" FormatString="0" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Classes="label" Text="Messages per pass" />
+                  <NumericUpDown Value="{Binding ContextWindow}" Minimum="1" Maximum="100" Increment="1" FormatString="0" />
+                </StackPanel>
+              </Grid>
+              <TextBlock Classes="label" Text="Max timeout (minutes)" Margin="0,8,0,3" />
+              <NumericUpDown Value="{Binding MaxTimeoutMinutes}" Minimum="1" Maximum="40320" Increment="30" FormatString="0" />
+              <CheckBox Margin="0,8,0,0" IsChecked="{Binding DryRun}" Content="Dry run (log actions, don't perform them)" />
+              <CheckBox IsChecked="{Binding ProtectModerators}" Content="Never time out owner / admins / mods" />
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+      <GridSplitter Grid.Column="1" Background="#1E1F22" ResizeDirection="Columns" />
+
+      <!-- Right: live feed -->
+      <Grid Grid.Column="2" RowDefinitions="*,8,*">
+        <Border Grid.Row="0" Classes="card">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Classes="section" Text="Moderation activity" />
+            <ListBox ItemsSource="{Binding Activities}" Background="Transparent" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ActivityItem">
+                  <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,2">
+                    <TextBlock Text="{Binding Time}" Foreground="#80848E" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding Channel}" Foreground="#5865F2" FontWeight="SemiBold" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="2" Text="{Binding Detail}" Foreground="#DBDEE1" TextWrapping="Wrap" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+        <GridSplitter Grid.Row="1" Background="#1E1F22" ResizeDirection="Rows" />
+
+        <Border Grid.Row="2" Classes="card">
+          <DockPanel>
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto">
+              <TextBlock Classes="section" Text="Logs" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Content="Clear" Command="{Binding ClearLogsCommand}" Padding="10,3" FontSize="12" />
+            </Grid>
+            <ListBox ItemsSource="{Binding Logs}" Background="Transparent" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:LogItem">
+                  <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,1">
+                    <TextBlock Text="{Binding Time}" Foreground="#80848E" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Text="{Binding Level}" Width="80"
+                               Foreground="{Binding Level, Converter={StaticResource LevelToBrush}}" />
+                    <TextBlock Grid.Column="2" Text="{Binding Message}" Foreground="#DBDEE1" TextWrapping="Wrap" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>

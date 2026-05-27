@@ -1,12 +1,18 @@
 # SuperMod
 
-An AI-powered moderator for Discord that follows the rules **you** write.
+An AI-powered moderator for Discord that follows the rules **you** write — with
+a native desktop app to run it.
 
 You create a Discord bot, give SuperMod a set of rules in plain English, and
 point it at a language model (local or hosted). SuperMod watches every channel,
 and on a rolling basis sends recent messages to the model. The model decides —
 using real moderation tools — whether to **delete messages** and/or **time out
 users**, then SuperMod carries those actions out.
+
+The whole thing is driven from a desktop window: fill in your token, rules and
+backend, click **Start**, and watch the live moderation feed.
+
+![SuperMod desktop app](docs/screenshot.png)
 
 ## How it works
 
@@ -50,94 +56,58 @@ Discord message ──► per-channel buffer ──(every 10 messages)──► 
    permissions (OAuth2 → URL Generator → scopes `bot`, then tick those two).
    Make sure the bot's role sits **above** the members it should be able to moderate.
 
-## 2. Pick and start an AI backend
+## 2. Pick an AI backend
 
-| Provider  | `Provider` value | Default base URL                | API key  | Example model      |
-|-----------|------------------|---------------------------------|----------|--------------------|
-| Ollama    | `ollama`         | `http://localhost:11434/v1`     | not used | `llama3.1`         |
-| LM Studio | `lmstudio`       | `http://localhost:1234/v1`      | not used | (loaded model)     |
-| xAI       | `xai`            | `https://api.x.ai/v1`           | required | `grok-2-latest`    |
+| Provider  | Default base URL                | API key  | Example model      |
+|-----------|---------------------------------|----------|--------------------|
+| Ollama    | `http://localhost:11434/v1`     | not used | `llama3.1`         |
+| LM Studio | `http://localhost:1234/v1`      | not used | (loaded model)     |
+| xAI       | `https://api.x.ai/v1`           | required | `grok-2-latest`    |
 
 - **Ollama:** `ollama pull llama3.1` then `ollama serve`. Use a model that
   supports tool calling (e.g. `llama3.1`, `qwen2.5`, `mistral-nemo`).
 - **LM Studio:** load a tool-capable model and start the **Local Server**.
-- **xAI:** create an API key at <https://console.x.ai> and set it as the API key.
+- **xAI:** create an API key at <https://console.x.ai>.
 
 > Tool calling quality depends on the model. Small local models can be hit or
 > miss; larger instruct models follow the rules far more reliably.
 
-## 3. Configure
-
-Edit `src/SuperMod/appsettings.json`, or override any value with an environment
-variable (double underscores map to nested keys):
-
-```jsonc
-{
-  "SuperMod": {
-    "DiscordToken": "",                  // your bot token
-    "Rules": "Be respectful. No spam ...", // the rules the AI enforces
-    "Ai": {
-      "Provider": "ollama",              // ollama | lmstudio | xai | openai
-      "BaseUrl": "",                     // optional; overrides the provider default
-      "ApiKey": "",                      // required for xai
-      "Model": "llama3.1",
-      "Temperature": 0.2,
-      "RequestTimeoutSeconds": 120
-    },
-    "Moderation": {
-      "MessagesPerBatch": 10,            // run a pass every N messages
-      "ContextWindow": 20,               // messages sent to the AI per pass
-      "MaxTimeoutMinutes": 1440,         // cap on any timeout (Discord max is 28 days)
-      "DryRun": false,                   // log actions instead of performing them
-      "ProtectModerators": true          // never time out owner/admins/mods
-    }
-  }
-}
-```
-
-Environment variable examples (useful for secrets and containers):
+## 3. Run the app
 
 ```bash
-export SuperMod__DiscordToken="your-bot-token"
-export SuperMod__Ai__Provider="xai"
-export SuperMod__Ai__ApiKey="your-xai-key"
-export SuperMod__Ai__Model="grok-2-latest"
+dotnet run --project src/SuperMod.App
 ```
 
-Tip: set `"DryRun": true` the first time. SuperMod will log exactly what it
-*would* delete or time out without touching anyone, so you can sanity-check your
-rules and model.
+The SuperMod window opens. Then:
 
-## 4. Run
+1. Paste your **bot token**.
+2. Edit the **rules** (plain English — the defaults are a reasonable starting point).
+3. Choose your **AI backend**: provider, model, and an API key if using xAI.
+   Leave **Base URL** blank to use the provider's default (shown as a hint).
+4. Tune **moderation** settings if you like (how often it runs, window size,
+   max timeout, dry-run, protect-moderators).
+5. Click **Start**. The status dot turns green and the live **Moderation
+   activity** and **Logs** panels fill in as the bot works. Click **Stop** any time.
 
-```bash
-dotnet run --project src/SuperMod
-```
+Your settings are saved automatically (on **Save** or **Start**) to
+`config.json` in your user app-data folder — `%APPDATA%\SuperMod` on Windows,
+`~/.config/SuperMod` on Linux, `~/Library/Application Support/SuperMod` on macOS —
+so they're remembered next launch. The token and API key are stored there in
+plain text, so treat that folder accordingly.
 
-Or with Docker:
-
-```bash
-docker build -t supermod .
-docker run --rm \
-  -e SuperMod__DiscordToken="your-bot-token" \
-  -e SuperMod__Ai__Provider="ollama" \
-  -e SuperMod__Ai__Model="llama3.1" \
-  --network host \
-  supermod
-```
-
-On a valid configuration you'll see `SuperMod connected ...` and
-`Logged in as <bot> in N guild(s)`. Misconfiguration fails fast with a clear
-message instead of starting.
+Tip: tick **Dry run** the first time. SuperMod logs exactly what it *would*
+delete or time out without touching anyone, so you can sanity-check your rules
+and model before going live.
 
 ## Safety
 
-- **Protected members:** with `ProtectModerators` on (default), SuperMod never
-  times out the guild owner or anyone with Administrator, Manage Messages or
-  Moderate Members permissions. It also never times out itself.
-- **Timeout cap:** every timeout is clamped to `MaxTimeoutMinutes` (and Discord's
-  hard 28-day limit).
-- **Dry run:** `DryRun` mode performs no destructive actions.
+- **Protected members:** with **"Never time out owner / admins / mods"** on
+  (default), SuperMod never times out the guild owner or anyone with
+  Administrator, Manage Messages or Moderate Members permissions. It also never
+  times out itself.
+- **Timeout cap:** every timeout is clamped to **Max timeout (minutes)** and to
+  Discord's hard 28-day limit.
+- **Dry run:** performs no destructive actions — actions are only logged.
 - **Self-throttling:** only one moderation pass runs per channel at a time;
   overlapping triggers are skipped rather than queued.
 
@@ -149,23 +119,31 @@ dotnet test
 
 Covers the rolling-window/overlap logic, prompt building, tolerant tool-argument
 parsing (string *or* numeric ids, string-encoded arguments), the moderation
-dispatch pipeline (timeout/delete/clamping/failure handling), and the
-OpenAI-compatible HTTP request/response wire format — all without needing a live
-Discord connection or model.
+dispatch pipeline (timeout/delete/clamping/failure handling), the
+OpenAI-compatible HTTP request/response wire format, and the desktop
+view-model (config load/save, start/stop, status & feed updates) — all without
+needing a live Discord connection, model, or display.
 
 ## Project layout
 
 ```
-src/SuperMod/
-  Program.cs                     Host setup + dependency injection
-  appsettings.json               Default configuration
-  Configuration/                 Strongly-typed options + validation
-  Ai/                            OpenAI-compatible chat client + DTOs
-  Moderation/                    Buffer, prompt, tools, dispatch (Discord-free core)
-  Discord/                       Gateway service + action implementation
-tests/SuperMod.Tests/            xUnit test suite
+src/SuperMod.Core/      Discord-free, fully testable engine
+  Configuration/          Strongly-typed options + validation
+  Ai/                     OpenAI-compatible chat client + DTOs
+  Moderation/             Buffer, prompt, tools, dispatch
+  Discord/                Gateway runner (BotRunner) + action implementation
+src/SuperMod.App/       Avalonia desktop UI
+  Views/                  MainWindow (XAML)
+  ViewModels/             MainWindowViewModel (bindable state + commands)
+  Services/               Bot controller, config store, UI log sink
+  Converters/             Status / log-level colours
+tests/SuperMod.Tests/   xUnit test suite (engine + view-model)
 ```
 
-The moderation core in `Moderation/` depends only on the `IChatClient` and
-`IModerationActions` abstractions, never on Discord types — which is what makes
-the whole pipeline testable in isolation.
+The engine in `SuperMod.Core` depends only on the `IChatClient` and
+`IModerationActions` abstractions, never on Avalonia — and the view-model talks
+to the bot through `IBotController` — which is what makes both the moderation
+pipeline and the UI logic testable in isolation.
+
+Built with [Avalonia](https://avaloniaui.net) (cross-platform: Windows, macOS,
+Linux) and [Discord.Net](https://discordnet.dev).
