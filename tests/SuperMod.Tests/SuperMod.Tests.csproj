@@ -15,7 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SuperMod\SuperMod.csproj" />
+    <ProjectReference Include="..\..\src\SuperMod.Core\SuperMod.Core.csproj" />
+    <ProjectReference Include="..\..\src\SuperMod.App\SuperMod.App.csproj" />
   </ItemGroup>
 
 </Project>
