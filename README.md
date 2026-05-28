@@ -33,6 +33,9 @@ Discord message ──► per-channel buffer ──(every 10 messages)──► 
   previous one by 10 messages — the model always sees the 10 newest messages
   plus the 10 it saw last time, so it keeps context across passes. Both numbers
   are configurable.
+- **Acts on startup.** As soon as it connects, SuperMod runs one immediate pass
+  over the most recent messages in a random channel it can read — so it starts
+  moderating right away instead of waiting for new activity to accumulate.
 - **Tools, not guesswork.** The model is given two functions —
   `delete_messages` and `timeout_users` — each of which accepts multiple ids, so
   a single decision can clean up several messages and mute several users at once.
