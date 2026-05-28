@@ -6,32 +6,32 @@ namespace SuperMod.Tests;
 public class ToolArgumentsTests
 {
     [Fact]
-    public void Reads_ids_from_string_array()
+    public void Reads_numbers_from_numeric_array()
     {
-        var args = ToolArguments.Parse("""{ "user_ids": ["123", "456"] }""");
-        Assert.Equal(new ulong[] { 123, 456 }, args.GetIds("user_ids"));
+        var args = ToolArguments.Parse("""{ "message_numbers": [1, 2, 3] }""");
+        Assert.Equal(new[] { 1, 2, 3 }, args.GetInts("message_numbers"));
     }
 
     [Fact]
-    public void Reads_ids_from_numeric_array()
+    public void Reads_numbers_from_string_array()
     {
-        // Snowflakes exceed JS safe-int range; ensure 64-bit numbers survive.
-        var args = ToolArguments.Parse("""{ "message_ids": [123456789012345678, 987654321098765432] }""");
-        Assert.Equal(new ulong[] { 123456789012345678, 987654321098765432 }, args.GetIds("message_ids"));
+        // Some models quote the numbers.
+        var args = ToolArguments.Parse("""{ "message_numbers": ["1", "2"] }""");
+        Assert.Equal(new[] { 1, 2 }, args.GetInts("message_numbers"));
     }
 
     [Fact]
-    public void Skips_unparseable_id_entries()
+    public void Skips_unparseable_number_entries()
     {
-        var args = ToolArguments.Parse("""{ "user_ids": ["123", "not-a-number", true, null] }""");
-        Assert.Equal(new ulong[] { 123 }, args.GetIds("user_ids"));
+        var args = ToolArguments.Parse("""{ "message_numbers": [1, "nope", true, null] }""");
+        Assert.Equal(new[] { 1 }, args.GetInts("message_numbers"));
     }
 
     [Fact]
-    public void Missing_id_property_returns_empty()
+    public void Missing_number_property_returns_empty()
     {
         var args = ToolArguments.Parse("""{ "reason": "x" }""");
-        Assert.Empty(args.GetIds("user_ids"));
+        Assert.Empty(args.GetInts("message_numbers"));
     }
 
     [Theory]
@@ -57,7 +57,7 @@ public class ToolArgumentsTests
     public void Invalid_json_is_handled_gracefully()
     {
         var args = ToolArguments.Parse("this is not json");
-        Assert.Empty(args.GetIds("user_ids"));
+        Assert.Empty(args.GetInts("message_numbers"));
         Assert.Equal(5, args.GetInt("duration_minutes", 5));
         Assert.Equal("fallback", args.GetString("reason", "fallback"));
     }

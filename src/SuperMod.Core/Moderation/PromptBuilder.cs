@@ -19,23 +19,33 @@ public static class PromptBuilder
             {trimmedRules}
             ====================
 
-            You will be given the most recent messages from this channel. Each line is formatted as:
-            [msg=<message_id>] <author_name> (user=<user_id>): <message content>
+            You will be given the most recent messages from this channel. Each message is labelled
+            with a number in square brackets, like this:
+            [3] <author_name>: <message content>
 
-            Review every message against the rules. For any clear violations:
-            - Call delete_messages with the offending message_id value(s) to remove them.
-            - Call timeout_users with the offending user_id value(s) to mute repeat or serious offenders.
-            You may call both tools, and you may include multiple ids in a single call. Group ids that
-            share the same reason and (for timeouts) the same duration into one call.
+            Carefully review EVERY message against the rules. Find ALL messages that break the rules —
+            do not stop after the first one. If several different messages break the rules, you must
+            include all of their numbers.
+
+            To act, call these tools (you may call both, and pass several numbers at once):
+            - delete_messages: remove rule-breaking messages. Put their numbers in "message_numbers".
+            - timeout_users: temporarily mute the AUTHORS of rule-breaking messages. Put the offending
+              message numbers in "message_numbers" and set "duration_minutes".
+
+            For every tool call you MUST also provide:
+            - reason: a short reason for the audit log.
+            - notice: a short, friendly message that will be sent privately to the affected user(s),
+              telling them which rule they broke and to review the rules. Cite the rule, for example:
+              "Per the no-NSFW rule, that isn't allowed in this channel — please review the rules and be careful!"
 
             Guidelines:
-            - Only act on clear, rule-breaking content. When a message is borderline or ambiguous, do nothing.
-            - Match the punishment to the severity. Use short timeouts for minor repeat offenses and longer
-              ones for serious violations such as hate speech, threats or NSFW content.
-            - Never invent message_id or user_id values; only use the ids shown in the transcript.
-            - Some messages may already have been handled in a previous pass; do not re-punish the same content.
+            - Act on every clear violation in the list, not just one. Group messages that share the same
+              reason and (for timeouts) the same duration into a single call with multiple numbers.
+            - Match severity: short timeouts for minor repeat issues, longer ones for serious violations
+              such as hate speech, threats or NSFW content.
+            - Only use message numbers that appear in the list. When a message is borderline, leave it.
 
-            If nothing violates the rules, reply with exactly: NO_ACTION
+            If nothing breaks the rules, reply with exactly: NO_ACTION
             Do not add commentary when you take action; just call the tools.
             """;
     }
@@ -46,16 +56,15 @@ public static class PromptBuilder
             return "(no messages)";
 
         var builder = new StringBuilder();
-        builder.AppendLine("Most recent messages (oldest first):");
-        foreach (var message in messages)
+        builder.AppendLine("Recent messages (oldest first). Each is labelled with its number:");
+        for (var i = 0; i < messages.Count; i++)
         {
-            builder.Append("[msg=")
-                   .Append(message.MessageId)
+            var message = messages[i];
+            builder.Append('[')
+                   .Append(i + 1)
                    .Append("] ")
                    .Append(message.AuthorName)
-                   .Append(" (user=")
-                   .Append(message.AuthorId)
-                   .Append("): ")
+                   .Append(": ")
                    .AppendLine(Sanitize(message.Content));
         }
         return builder.ToString().TrimEnd();

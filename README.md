@@ -37,8 +37,18 @@ Discord message ──► per-channel buffer ──(every 10 messages)──► 
   over the most recent messages in a random channel it can read — so it starts
   moderating right away instead of waiting for new activity to accumulate.
 - **Tools, not guesswork.** The model is given two functions —
-  `delete_messages` and `timeout_users` — each of which accepts multiple ids, so
-  a single decision can clean up several messages and mute several users at once.
+  `delete_messages` and `timeout_users` — each of which acts on several messages
+  at once, so a single decision can clean up multiple messages and mute multiple
+  users. Messages are referenced by short numbers (`[1] [2] …`) that SuperMod
+  maps back to real Discord ids, so the model never has to copy error-prone
+  18-digit snowflakes — which makes it reliably act on *every* offending message,
+  not just the first.
+- **Private notices.** When SuperMod deletes a message or times someone out, it
+  can send that user a **private DM** explaining which rule they broke (e.g.
+  "Per rule 3.4, no NSFW in non-NSFW channels — please review the rules!"). The
+  AI writes the explanation. (Discord only allows truly *ephemeral* messages as
+  replies to slash-command/button interactions, so for proactive moderation a
+  DM is the way to reach just that one user privately.)
 - **One client, three backends.** LM Studio, Ollama and xAI all speak the
   OpenAI-compatible `/v1/chat/completions` API with tool calling, so SuperMod
   uses a single HTTP client for all of them.
@@ -88,7 +98,8 @@ The SuperMod window opens. Then:
 3. Choose your **AI backend**: provider, model, and an API key if using xAI.
    Leave **Base URL** blank to use the provider's default (shown as a hint).
 4. Tune **moderation** settings if you like (how often it runs, window size,
-   max timeout, dry-run, protect-moderators).
+   max timeout, dry-run, protect-moderators, and **"Privately DM users why they
+   were moderated"** to turn the explanation DMs on/off).
 5. Click **Start**. The status dot turns green and the live **Moderation
    activity** and **Logs** panels fill in as the bot works. Click **Stop** any time.
 
@@ -110,7 +121,10 @@ and model before going live.
   times out itself.
 - **Timeout cap:** every timeout is clamped to **Max timeout (minutes)** and to
   Discord's hard 28-day limit.
-- **Dry run:** performs no destructive actions — actions are only logged.
+- **Dry run:** performs no destructive actions and sends no DMs — everything is
+  only logged (including the DM it *would* have sent).
+- **Notices are best-effort:** if a user has DMs disabled, the delete/timeout
+  still happens; SuperMod just logs that it couldn't reach them.
 - **Self-throttling:** only one moderation pass runs per channel at a time;
   overlapping triggers are skipped rather than queued.
 

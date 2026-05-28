@@ -14,11 +14,12 @@ public class PromptBuilderTests
         Assert.Contains("#general", prompt);
         Assert.Contains("timeout_users", prompt);
         Assert.Contains("delete_messages", prompt);
+        Assert.Contains("notice", prompt); // instructs the model to provide a user notice
         Assert.Contains("NO_ACTION", prompt);
     }
 
     [Fact]
-    public void Transcript_includes_ids_authors_and_content()
+    public void Transcript_numbers_messages_and_includes_authors_and_content()
     {
         var messages = new List<BufferedMessage>
         {
@@ -28,12 +29,11 @@ public class PromptBuilderTests
 
         var transcript = PromptBuilder.BuildTranscript(messages);
 
-        Assert.Contains("msg=111", transcript);
-        Assert.Contains("user=222", transcript);
-        Assert.Contains("alice", transcript);
-        Assert.Contains("hello world", transcript);
-        Assert.Contains("msg=333", transcript);
-        Assert.Contains("spam spam spam", transcript);
+        Assert.Contains("[1] alice: hello world", transcript);
+        Assert.Contains("[2] bob: spam spam spam", transcript);
+        // Raw snowflake ids must NOT be exposed to the model anymore.
+        Assert.DoesNotContain("111", transcript);
+        Assert.DoesNotContain("222", transcript);
     }
 
     [Fact]

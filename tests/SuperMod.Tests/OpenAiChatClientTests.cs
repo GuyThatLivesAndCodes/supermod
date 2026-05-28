@@ -90,7 +90,7 @@ public class OpenAiChatClientTests
                         "type": "function",
                         "function": {
                           "name": "delete_messages",
-                          "arguments": "{\"message_ids\":[\"123\",\"456\"],\"reason\":\"spam\"}"
+                          "arguments": "{\"message_numbers\":[1,2],\"reason\":\"spam\"}"
                         }
                       }
                     ]
@@ -108,7 +108,7 @@ public class OpenAiChatClientTests
         Assert.Equal("delete_messages", call.Function.Name);
 
         var args = ToolArguments.Parse(call.Function.ArgumentsJson);
-        Assert.Equal(new ulong[] { 123, 456 }, args.GetIds("message_ids"));
+        Assert.Equal(new[] { 1, 2 }, args.GetInts("message_numbers"));
         Assert.Equal("spam", args.GetString("reason", ""));
     }
 

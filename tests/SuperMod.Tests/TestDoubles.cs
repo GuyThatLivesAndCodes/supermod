@@ -31,23 +31,31 @@ internal sealed class FakeChatClient : IChatClient
 
 internal sealed record TimeoutCall(ulong GuildId, IReadOnlyCollection<ulong> UserIds, TimeSpan Duration, string Reason);
 internal sealed record DeleteCall(ulong GuildId, ulong ChannelId, IReadOnlyCollection<ulong> MessageIds, string Reason);
+internal sealed record NotifyCall(ulong GuildId, IReadOnlyCollection<ulong> UserIds, string Message);
 
 /// <summary>An <see cref="IModerationActions"/> that records every invocation.</summary>
 internal sealed class RecordingActions : IModerationActions
 {
     public List<TimeoutCall> Timeouts { get; } = new();
     public List<DeleteCall> Deletes { get; } = new();
+    public List<NotifyCall> Notifications { get; } = new();
 
-    public Task<string> TimeoutUsersAsync(ulong guildId, IReadOnlyCollection<ulong> userIds, TimeSpan duration, string reason, CancellationToken cancellationToken)
+    public Task<ModerationActionResult> TimeoutUsersAsync(ulong guildId, IReadOnlyCollection<ulong> userIds, TimeSpan duration, string reason, CancellationToken cancellationToken)
     {
         Timeouts.Add(new TimeoutCall(guildId, userIds, duration, reason));
-        return Task.FromResult($"timed out {userIds.Count} user(s)");
+        return Task.FromResult(new ModerationActionResult($"timed out {userIds.Count} user(s)", userIds.ToList()));
     }
 
-    public Task<string> DeleteMessagesAsync(ulong guildId, ulong channelId, IReadOnlyCollection<ulong> messageIds, string reason, CancellationToken cancellationToken)
+    public Task<ModerationActionResult> DeleteMessagesAsync(ulong guildId, ulong channelId, IReadOnlyCollection<ulong> messageIds, string reason, CancellationToken cancellationToken)
     {
         Deletes.Add(new DeleteCall(guildId, channelId, messageIds, reason));
-        return Task.FromResult($"deleted {messageIds.Count} message(s)");
+        return Task.FromResult(new ModerationActionResult($"deleted {messageIds.Count} message(s)", messageIds.ToList()));
+    }
+
+    public Task NotifyUsersAsync(ulong guildId, IReadOnlyCollection<ulong> userIds, string message, CancellationToken cancellationToken)
+    {
+        Notifications.Add(new NotifyCall(guildId, userIds, message));
+        return Task.CompletedTask;
     }
 }
 

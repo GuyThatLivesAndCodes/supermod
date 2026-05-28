@@ -18,7 +18,7 @@ public class MainWindowViewModelTests
         DiscordToken = "token-123",
         Rules = "No spam.",
         Ai = new AiOptions { Provider = "xai", BaseUrl = "http://x/v1", ApiKey = "key", Model = "grok-2-latest", Temperature = 0.5, RequestTimeoutSeconds = 90 },
-        Moderation = new ModerationOptions { MessagesPerBatch = 7, ContextWindow = 14, MaxTimeoutMinutes = 600, DryRun = true, ProtectModerators = false }
+        Moderation = new ModerationOptions { MessagesPerBatch = 7, ContextWindow = 14, MaxTimeoutMinutes = 600, DryRun = true, ProtectModerators = false, NotifyUsers = false }
     };
 
     [Fact]
@@ -39,6 +39,7 @@ public class MainWindowViewModelTests
         Assert.Equal(600, vm.MaxTimeoutMinutes);
         Assert.True(vm.DryRun);
         Assert.False(vm.ProtectModerators);
+        Assert.False(vm.NotifyUsers);
     }
 
     [Fact]

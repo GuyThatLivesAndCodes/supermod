@@ -124,6 +124,7 @@
               <NumericUpDown Value="{Binding MaxTimeoutMinutes}" Minimum="1" Maximum="40320" Increment="30" FormatString="0" />
               <CheckBox Margin="0,8,0,0" IsChecked="{Binding DryRun}" Content="Dry run (log actions, don't perform them)" />
               <CheckBox IsChecked="{Binding ProtectModerators}" Content="Never time out owner / admins / mods" />
+              <CheckBox IsChecked="{Binding NotifyUsers}" Content="Privately DM users why they were moderated" />
             </StackPanel>
 
           </StackPanel>

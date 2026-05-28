@@ -95,4 +95,7 @@ public sealed class ModerationOptions
 
     /// <summary>When true, never time out the guild owner or members with admin/manage/moderate permissions.</summary>
     public bool ProtectModerators { get; set; } = true;
+
+    /// <summary>When true, send affected users a private DM explaining which rule they broke.</summary>
+    public bool NotifyUsers { get; set; } = true;
 }

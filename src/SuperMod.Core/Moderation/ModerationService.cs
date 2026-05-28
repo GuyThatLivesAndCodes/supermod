@@ -83,7 +83,8 @@ public sealed class ModerationService
         {
             case ToolSchemas.TimeoutUsers:
             {
-                var userIds = args.GetIds("user_ids");
+                var targets = Resolve(context, args.GetInts("message_numbers"));
+                var userIds = targets.Select(m => m.AuthorId).Distinct().ToList();
                 if (userIds.Count == 0)
                     return null;
 
@@ -92,25 +93,71 @@ public sealed class ModerationService
                     1,
                     Math.Min(_options.Moderation.MaxTimeoutMinutes, DiscordMaxTimeoutMinutes));
                 var reason = args.GetString("reason", "Violated server rules.");
+                var notice = args.GetString("notice", "");
 
-                return await _actions.TimeoutUsersAsync(
+                var result = await _actions.TimeoutUsersAsync(
                     context.GuildId, userIds, TimeSpan.FromMinutes(minutes), reason, cancellationToken);
+
+                if (_options.Moderation.NotifyUsers && result.AffectedIds.Count > 0)
+                {
+                    var message = string.IsNullOrWhiteSpace(notice)
+                        ? $"You have been timed out for {minutes} minute(s). Reason: {reason}"
+                        : notice;
+                    await _actions.NotifyUsersAsync(context.GuildId, result.AffectedIds, message, cancellationToken);
+                }
+
+                return result.Summary;
             }
 
             case ToolSchemas.DeleteMessages:
             {
-                var messageIds = args.GetIds("message_ids");
-                if (messageIds.Count == 0)
+                var targets = Resolve(context, args.GetInts("message_numbers"));
+                if (targets.Count == 0)
                     return null;
 
+                var messageIds = targets.Select(m => m.MessageId).Distinct().ToList();
                 var reason = args.GetString("reason", "Violated server rules.");
-                return await _actions.DeleteMessagesAsync(
+                var notice = args.GetString("notice", "");
+
+                var result = await _actions.DeleteMessagesAsync(
                     context.GuildId, context.ChannelId, messageIds, reason, cancellationToken);
+
+                if (_options.Moderation.NotifyUsers && result.AffectedIds.Count > 0)
+                {
+                    var deleted = result.AffectedIds.ToHashSet();
+                    var authorIds = targets
+                        .Where(m => deleted.Contains(m.MessageId))
+                        .Select(m => m.AuthorId)
+                        .Distinct()
+                        .ToList();
+
+                    if (authorIds.Count > 0)
+                    {
+                        var message = string.IsNullOrWhiteSpace(notice)
+                            ? $"A message you posted was removed by moderation. Reason: {reason}"
+                            : notice;
+                        await _actions.NotifyUsersAsync(context.GuildId, authorIds, message, cancellationToken);
+                    }
+                }
+
+                return result.Summary;
             }
 
             default:
                 _log.LogWarning("AI requested unknown tool '{Tool}'.", call.Function.Name);
                 return null;
         }
+    }
+
+    /// <summary>Maps 1-based message numbers from the transcript back to buffered messages.</summary>
+    private static List<BufferedMessage> Resolve(ModerationContext context, IReadOnlyList<int> numbers)
+    {
+        var resolved = new List<BufferedMessage>();
+        foreach (var number in numbers)
+        {
+            if (number >= 1 && number <= context.Messages.Count)
+                resolved.Add(context.Messages[number - 1]);
+        }
+        return resolved;
     }
 }

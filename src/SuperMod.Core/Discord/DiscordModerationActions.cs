@@ -10,6 +10,8 @@ namespace SuperMod.Discord;
 /// <summary>Performs moderation actions against Discord via the socket/REST client.</summary>
 public sealed class DiscordModerationActions : IModerationActions
 {
+    private const int MaxDmLength = 2000;
+
     private readonly DiscordSocketClient _client;
     private readonly ModerationOptions _options;
     private readonly ILogger<DiscordModerationActions> _log;
@@ -24,7 +26,7 @@ public sealed class DiscordModerationActions : IModerationActions
         _log = log;
     }
 
-    public async Task<string> TimeoutUsersAsync(
+    public async Task<ModerationActionResult> TimeoutUsersAsync(
         ulong guildId,
         IReadOnlyCollection<ulong> userIds,
         TimeSpan duration,
@@ -33,10 +35,11 @@ public sealed class DiscordModerationActions : IModerationActions
     {
         var guild = _client.GetGuild(guildId);
         if (guild is null)
-            return "guild not available";
+            return ModerationActionResult.None("guild not available");
 
         var requestOptions = new RequestOptions { AuditLogReason = Trim(reason), CancelToken = cancellationToken };
         var done = new List<string>();
+        var affected = new List<ulong>();
 
         foreach (var userId in userIds)
         {
@@ -65,6 +68,7 @@ public sealed class DiscordModerationActions : IModerationActions
             if (_options.DryRun)
             {
                 done.Add($"[dry-run] timeout {member.Username} for {duration.TotalMinutes:0}m");
+                affected.Add(userId);
                 continue;
             }
 
@@ -72,6 +76,7 @@ public sealed class DiscordModerationActions : IModerationActions
             {
                 await member.SetTimeOutAsync(duration, requestOptions);
                 done.Add($"timed out {member.Username} for {duration.TotalMinutes:0}m");
+                affected.Add(userId);
             }
             catch (Exception ex)
             {
@@ -79,12 +84,13 @@ public sealed class DiscordModerationActions : IModerationActions
             }
         }
 
-        return done.Count > 0
+        var summary = done.Count > 0
             ? $"{string.Join("; ", done)} — reason: {Trim(reason)}"
             : "no users timed out";
+        return new ModerationActionResult(summary, affected);
     }
 
-    public async Task<string> DeleteMessagesAsync(
+    public async Task<ModerationActionResult> DeleteMessagesAsync(
         ulong guildId,
         ulong channelId,
         IReadOnlyCollection<ulong> messageIds,
@@ -93,16 +99,16 @@ public sealed class DiscordModerationActions : IModerationActions
     {
         var channel = _client.GetGuild(guildId)?.GetTextChannel(channelId);
         if (channel is null)
-            return "channel not available";
+            return ModerationActionResult.None("channel not available");
 
         var ids = messageIds.Distinct().ToArray();
         if (ids.Length == 0)
-            return "no messages to delete";
+            return ModerationActionResult.None("no messages to delete");
 
         var requestOptions = new RequestOptions { AuditLogReason = Trim(reason), CancelToken = cancellationToken };
 
         if (_options.DryRun)
-            return $"[dry-run] delete {ids.Length} message(s) — reason: {Trim(reason)}";
+            return new ModerationActionResult($"[dry-run] delete {ids.Length} message(s) — reason: {Trim(reason)}", ids);
 
         // Bulk delete is fastest but only works for >=2 messages newer than 14 days.
         // Fall back to per-message deletes for a single id or when bulk fails.
@@ -111,7 +117,7 @@ public sealed class DiscordModerationActions : IModerationActions
             try
             {
                 await channel.DeleteMessagesAsync(ids, requestOptions);
-                return $"deleted {ids.Length} messages — reason: {Trim(reason)}";
+                return new ModerationActionResult($"deleted {ids.Length} messages — reason: {Trim(reason)}", ids);
             }
             catch (Exception ex)
             {
@@ -119,13 +125,13 @@ public sealed class DiscordModerationActions : IModerationActions
             }
         }
 
-        var deleted = 0;
+        var deleted = new List<ulong>();
         foreach (var id in ids)
         {
             try
             {
                 await channel.DeleteMessageAsync(id, requestOptions);
-                deleted++;
+                deleted.Add(id);
             }
             catch (Exception ex)
             {
@@ -133,7 +139,48 @@ public sealed class DiscordModerationActions : IModerationActions
             }
         }
 
-        return $"deleted {deleted}/{ids.Length} messages — reason: {Trim(reason)}";
+        return new ModerationActionResult(
+            $"deleted {deleted.Count}/{ids.Length} messages — reason: {Trim(reason)}", deleted);
+    }
+
+    public async Task NotifyUsersAsync(
+        ulong guildId,
+        IReadOnlyCollection<ulong> userIds,
+        string message,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return;
+
+        var text = message.Length <= MaxDmLength ? message : message[..MaxDmLength];
+        var guild = _client.GetGuild(guildId);
+
+        foreach (var userId in userIds)
+        {
+            if (userId == _client.CurrentUser?.Id)
+                continue;
+
+            if (_options.DryRun)
+            {
+                _log.LogInformation("[dry-run] would DM user {UserId}: {Message}", userId, text);
+                continue;
+            }
+
+            try
+            {
+                IUser? user = guild?.GetUser(userId);
+                user ??= await _client.Rest.GetUserAsync(userId);
+                if (user is null)
+                    continue;
+
+                await user.SendMessageAsync(text);
+            }
+            catch (Exception ex)
+            {
+                // Most commonly the user has DMs disabled (HTTP 403); nothing we can do.
+                _log.LogDebug(ex, "Could not DM user {UserId} (they may have DMs disabled).", userId);
+            }
+        }
     }
 
     private static bool IsProtected(SocketGuild guild, IGuildUser user)

@@ -37,6 +37,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _maxTimeoutMinutes = 1440;
     [ObservableProperty] private bool _dryRun;
     [ObservableProperty] private bool _protectModerators = true;
+    [ObservableProperty] private bool _notifyUsers = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsRunning), nameof(CanEditConfig))]
@@ -150,7 +151,8 @@ public partial class MainWindowViewModel : ObservableObject
             ContextWindow = ContextWindow,
             MaxTimeoutMinutes = MaxTimeoutMinutes,
             DryRun = DryRun,
-            ProtectModerators = ProtectModerators
+            ProtectModerators = ProtectModerators,
+            NotifyUsers = NotifyUsers
         }
     };
 
@@ -169,6 +171,7 @@ public partial class MainWindowViewModel : ObservableObject
         MaxTimeoutMinutes = options.Moderation.MaxTimeoutMinutes;
         DryRun = options.Moderation.DryRun;
         ProtectModerators = options.Moderation.ProtectModerators;
+        NotifyUsers = options.Moderation.NotifyUsers;
     }
 
     private void OnStatusChanged(BotStatus status, string? detail) => _post(() =>

@@ -29,29 +29,32 @@ public sealed class ToolArguments
         }
     }
 
-    /// <summary>Reads an array of snowflake ids, accepting string or numeric elements.</summary>
-    public IReadOnlyList<ulong> GetIds(string property)
+    /// <summary>
+    /// Reads an array of small message numbers (the [n] labels), accepting numeric
+    /// or numeric-string elements. Invalid entries are skipped.
+    /// </summary>
+    public IReadOnlyList<int> GetInts(string property)
     {
-        var ids = new List<ulong>();
+        var numbers = new List<int>();
         if (_root.ValueKind != JsonValueKind.Object)
-            return ids;
+            return numbers;
 
         if (!_root.TryGetProperty(property, out var array) || array.ValueKind != JsonValueKind.Array)
-            return ids;
+            return numbers;
 
         foreach (var element in array.EnumerateArray())
         {
             switch (element.ValueKind)
             {
-                case JsonValueKind.String when ulong.TryParse(element.GetString(), out var fromString):
-                    ids.Add(fromString);
+                case JsonValueKind.Number when element.TryGetInt32(out var fromNumber):
+                    numbers.Add(fromNumber);
                     break;
-                case JsonValueKind.Number when element.TryGetUInt64(out var fromNumber):
-                    ids.Add(fromNumber);
+                case JsonValueKind.String when int.TryParse(element.GetString(), out var fromString):
+                    numbers.Add(fromString);
                     break;
             }
         }
-        return ids;
+        return numbers;
     }
 
     /// <summary>Reads an integer property, accepting numeric or numeric-string values.</summary>

@@ -20,18 +20,18 @@ public static class ToolSchemas
         Function = new ChatFunction
         {
             Name = TimeoutUsers,
-            Description = "Temporarily mute (time out) one or more users who broke the rules. " +
+            Description = "Temporarily mute (time out) the authors of rule-breaking messages. " +
                           "Use for repeat or serious offenders.",
             Parameters = Schema(new
             {
                 type = "object",
                 properties = new
                 {
-                    user_ids = new
+                    message_numbers = new
                     {
                         type = "array",
-                        items = new { type = "string" },
-                        description = "Discord user ids (the user=... value) to time out."
+                        items = new { type = "integer" },
+                        description = "The [n] numbers of the offending messages. Their authors will be timed out."
                     },
                     duration_minutes = new
                     {
@@ -41,10 +41,16 @@ public static class ToolSchemas
                     reason = new
                     {
                         type = "string",
-                        description = "Short reason recorded in the audit log."
+                        description = "Short reason recorded in the Discord audit log."
+                    },
+                    notice = new
+                    {
+                        type = "string",
+                        description = "A short, friendly message sent privately to the affected user(s) explaining " +
+                                      "which rule was broken and to review the rules. Cite the rule."
                     }
                 },
-                required = new[] { "user_ids", "duration_minutes", "reason" }
+                required = new[] { "message_numbers", "duration_minutes", "reason", "notice" }
             })
         }
     };
@@ -60,19 +66,25 @@ public static class ToolSchemas
                 type = "object",
                 properties = new
                 {
-                    message_ids = new
+                    message_numbers = new
                     {
                         type = "array",
-                        items = new { type = "string" },
-                        description = "Discord message ids (the msg=... value) to delete."
+                        items = new { type = "integer" },
+                        description = "The [n] numbers of the messages to delete. Include every offending message."
                     },
                     reason = new
                     {
                         type = "string",
-                        description = "Short reason recorded in the audit log."
+                        description = "Short reason recorded in the Discord audit log."
+                    },
+                    notice = new
+                    {
+                        type = "string",
+                        description = "A short, friendly message sent privately to the affected author(s) explaining " +
+                                      "which rule was broken and to review the rules. Cite the rule."
                     }
                 },
-                required = new[] { "message_ids", "reason" }
+                required = new[] { "message_numbers", "reason", "notice" }
             })
         }
     };
